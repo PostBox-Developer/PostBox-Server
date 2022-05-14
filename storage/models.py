@@ -13,8 +13,8 @@ class Folder(models.Model):
     foldername = models.CharField(max_length=100)
     is_shared = models.BooleanField(default=False)
     is_public = models.IntegerField(choices=PRIVATE_OF_Folder)
-    parent_folder = models.ForeignKey("self", on_delete=models.CASCADE, related_name='Child_Folder')        # 상위폴더 (하위폴더 필드는 필요X)
-    creater = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='File')                 # 생성자
+    parent_folder = models.ForeignKey("self", on_delete=models.CASCADE, related_name='child_folder')        # 상위폴더 (하위폴더 필드는 필요X)
+    creater = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='created_folder')                 # 생성자
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(blank=True, null=True)
 
@@ -28,8 +28,8 @@ class Folder(models.Model):
 
 class File(models.Model):
     filename = models.CharField(max_length=100)
-    uploader = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='File')        # 생성자
-    parent_folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name='File')        # 상위폴더
+    uploader = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='uploaded_file')        # 생성자
+    parent_folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name='child_file')        # 상위폴더
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(blank=True, null=True)
 
