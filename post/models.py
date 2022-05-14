@@ -7,7 +7,7 @@ from django.utils import timezone
 class Post(models.Model):
     title = models.CharField(max_length=100)
     desc = models.TextField()
-    author = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='Post')
+    author = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='post')
     created_at = models.DateTimeField(default=timezone.now)
     modified_at = models.DateTimeField(blank=True, null=True)
 
@@ -20,5 +20,5 @@ class Post(models.Model):
 
 
 class PostAttachFile(models.Model):
-    post = models.ForeignKey("post.Post", on_delete=models.CASCADE, related_name='PostAttachFile')
-    file = models.ForeignKey("storage.File", on_delete=models.CASCADE, related_name='PostAttachFile')
+    post = models.ForeignKey("post.Post", on_delete=models.CASCADE, related_name='postAttachFile')
+    file = models.ForeignKey("storage.File", on_delete=models.CASCADE, related_name='postAttachFile')
