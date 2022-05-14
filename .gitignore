@@ -369,4 +369,7 @@ $RECYCLE.BIN/
 # migrations files
 *_initial.py
 
+# secrets.json file
+secrets.json
+
 # End of https://www.toptal.com/developers/gitignore/api/django,visualstudiocode,python,macos,windows,venv,git
