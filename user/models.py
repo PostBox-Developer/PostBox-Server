@@ -6,7 +6,7 @@ from django.contrib.auth.models import BaseUserManager
 class User(AbstractUser):
     user_id = models.CharField(unique=True, max_length=20)     # id
     username = models.CharField(unique=False, max_length=20)    # user name (본명)
-    root_folder = models.OneToOneField("storage.Folder", on_delete=models.PROTECT, related_name='user')
+    root_folder = models.OneToOneField("storage.Folder", on_delete=models.PROTECT, related_name='user', null=True)
 
     USERNAME_FIELD = 'user_id'
     REQUIRED_FIELDS = ['username', ]
