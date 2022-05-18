@@ -53,7 +53,10 @@ class FolderListSerializer(serializers.ModelSerializer):
         return obj.creater.username
 
     def getParentFolderId(self, obj):
-        return obj.parent_folder.id
+        if obj.parent_folder == None:
+            return "null"
+        else:
+            return obj.parent_folder.id
 
 class FileUploadSerializer(serializers.ModelSerializer):
     class Meta:
