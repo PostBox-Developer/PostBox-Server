@@ -8,16 +8,16 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 
 
-class UserCreate(generics.ListCreateAPIView):
+class UserAPI(generics.ListCreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-class UserDetail(generics.RetrieveUpdateDestroyAPIView):
+class UserDetailAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
 
-class CustomAuthToken(ObtainAuthToken):
+class LoginAPI(ObtainAuthToken):
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
