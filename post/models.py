@@ -22,3 +22,12 @@ class Post(models.Model):
 class PostAttachFile(models.Model):
     post = models.ForeignKey("post.Post", on_delete=models.CASCADE, related_name='postAttachFile')
     file = models.ForeignKey("storage.File", on_delete=models.CASCADE, related_name='postAttachFile')
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["post", "file"],
+                name="unique combination",
+            ),
+        ]
+        
