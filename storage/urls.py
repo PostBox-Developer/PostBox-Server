@@ -9,4 +9,5 @@ urlpatterns = [
     path("upload_file/", views.FileListCreateAPIView.as_view()),
     path("create_new_folder/", views.FolderListCreateAPIView.as_view()),
     path("delete_file/", views.delete_file),
+    path("delete_folder/", views.delete_folder),
 ]
