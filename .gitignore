@@ -373,3 +373,9 @@ $RECYCLE.BIN/
 secrets.json
 
 # End of https://www.toptal.com/developers/gitignore/api/django,visualstudiocode,python,macos,windows,venv,git
+
+# s3 client credential file
+**/boto3_config.py 
+
+# migrations folder
+**/migrations
