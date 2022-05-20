@@ -11,6 +11,7 @@ class User(AbstractUser):
     user_id = models.CharField(unique=True, max_length=20, validators=[user_id])     # id
     username = models.CharField(unique=False, max_length=20)    # user name (본명)
     root_folder = models.OneToOneField("storage.Folder", on_delete=models.PROTECT, related_name='user', null=True)
+    profile_image_key = models.CharField(default="defaultKey")      # 나중에 S3 버킷 만들고, 기본이미지 올리고, 이거 키값을 default로
 
     USERNAME_FIELD = 'user_id'
     REQUIRED_FIELDS = ['username', ]
@@ -21,4 +22,11 @@ class User(AbstractUser):
 class UserFollowing(models.Model):
     follower = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='userFollowing_follower')
     followee = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name='userFollowing_followee')
-    
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["post", "file"],
+                name="unique combination",
+            ),
+        ]
