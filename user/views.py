@@ -1,6 +1,4 @@
-from django.shortcuts import render
-from rest_framework import generics, status
-from user import serializers
+from rest_framework import generics
 from user.models import User
 from user.serializers import LoginSerializer, UserSerializer
 from rest_framework.response import Response
@@ -16,13 +14,11 @@ class UserDetailAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-
 class LoginAPI(ObtainAuthToken):
     serializer_class = LoginSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data,
-                                           context={'request': request})
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         token, created = Token.objects.get_or_create(user=user)
