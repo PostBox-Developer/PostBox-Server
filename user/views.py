@@ -24,6 +24,9 @@ class LoginAPI(ObtainAuthToken):
         token, created = Token.objects.get_or_create(user=user)
         return Response({
             'token': token.key,
+            'pk': user.pk,
             'user_id': user.user_id,
-            'username': user.username
+            'username': user.username,
+            'root_folder': user.root_folder,
+            'profile_image_key': user.profile_image_key
         })
