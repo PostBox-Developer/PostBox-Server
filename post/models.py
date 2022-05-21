@@ -21,7 +21,7 @@ class Post(models.Model):
 
 class PostImage(models.Model):
     post = models.ForeignKey("post.Post", on_delete=models.CASCADE, related_name="postImage")
-    s3_key = models.CharField()
+    s3_key = models.CharField(max_length=200)
 
 class Category(models.Model):
     user = models.ForeignKey("user.User", on_delete=models.CASCADE, related_name="category")
@@ -35,7 +35,7 @@ class PostAttachFile(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["post", "file"],
-                name="unique combination",
+                name="postAttachFile unique combination",
             ),
         ]
         

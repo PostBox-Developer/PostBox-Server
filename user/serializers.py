@@ -8,7 +8,7 @@ from django.utils.translation import gettext_lazy as _
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['user_id', 'username', 'root_folder', 'password']
+        fields = ['pk', 'user_id', 'username', 'password', 'root_folder', 'profile_image_key']
 
     def create(self, validated_data):
         user = User.objects.create_user(

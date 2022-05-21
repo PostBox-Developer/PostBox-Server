@@ -57,7 +57,7 @@ class FolderSharing(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["post", "file"],
-                name="unique combination",
+                fields=["sharer", "folder"],
+                name="folderSharing unique combination",
             ),
         ]
