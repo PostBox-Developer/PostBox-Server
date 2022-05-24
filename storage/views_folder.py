@@ -260,7 +260,27 @@ def move_folder_trashcan(request):
     sub_files.update(is_deleted = 2)
     sub_files.update(modified_at = timezone.now())
 
-    return 1
+    # 하위 폴더들에 대해, BFS를 이용해 순회함. 
+    queue = []
+    temp = Folder.objects.filter(parent_folder = targetFolder)
+    for folder in temp:
+        queue.append(folder)
+
+    while queue:
+        folder = queue.pop(0)
+        folder.is_deleted = 2
+        folder.modified_at = timezone.now()
+        folder.save()
+
+        _sub_files = File.objects.filter(parent_folder = folder)
+        _sub_files.update(is_deleted = 2)
+        _sub_files.update(modified_at = timezone.now())
+
+        _temp = Folder.objects.filter(parent_folder = folder)
+        for _folder in _temp:
+            queue.append(_folder)
+
+    return Response({"message": "success"}, status=status.HTTP_200_OK)
 
 '''
 휴지통 폴더 복구: DB Folder.is_deleted 및 하위 Folder.is_deleted, File.is_deleted 변경
@@ -273,8 +293,37 @@ def restore_folder(request):
     folder_id = data.get("folder_id")
 
     # pk=folder_id인 폴더의 is_deleted: 0, 하위 폴더와 파일들의 is_deleted: 0
-    
-    return 1
+    targetFolder = Folder.objects.get(pk = folder_id)
+    targetFolder.is_deleted = 0
+    targetFolder.modified_at = timezone.now()
+    targetFolder.save()
+
+    # 하위 파일들
+    sub_files = File.objects.filter(parent_folder=targetFolder)
+    sub_files.update(is_deleted = 0)
+    sub_files.update(modified_at = timezone.now())
+
+    # 하위 폴더들에 대해, BFS를 이용해 순회함. 
+    queue = []
+    temp = Folder.objects.filter(parent_folder = targetFolder)
+    for folder in temp:
+        queue.append(folder)
+
+    while queue:
+        folder = queue.pop(0)
+        folder.is_deleted = 0
+        folder.modified_at = timezone.now()
+        folder.save()
+
+        _sub_files = File.objects.filter(parent_folder = folder)
+        _sub_files.update(is_deleted = 0)
+        _sub_files.update(modified_at = timezone.now())
+
+        _temp = Folder.objects.filter(parent_folder = folder)
+        for _folder in _temp:
+            queue.append(_folder)
+
+    return Response({"message": "success"}, status=status.HTTP_200_OK)
 
 '''
 폴더 영구 삭제: S3 폴더 객체 삭제 및 DB Folder 레코드 삭제
