@@ -19,13 +19,8 @@ urlpatterns = [
     path("get_folder_contents/", views_folder.get_folder_contents),
     path("create_folder/", views_folder.create_folder),
     path("modify_foldername/", views_folder.modify_foldername),
-
-    path("get_file_list/", views_file.FileListCreateAPIView.as_view()),
-    path("get_folder_list/", views_file.FolderListCreateAPIView.as_view()),
-    #path("upload_file/", views_file.FileListCreateAPIView.as_view()),
-    path("create_new_folder/", views_file.FolderListCreateAPIView.as_view()),
-
-
-    
-    path("delete_folder/", views_file.delete_folder),
+    path("move_folder/", views_folder.move_folder),
+    path("move_folder_trashcan/", views_folder.move_folder_trashcan),
+    path("restore_folder/", views_folder.restore_folder),
+    path("delete_folder/", views_folder.delete_folder),
 ]

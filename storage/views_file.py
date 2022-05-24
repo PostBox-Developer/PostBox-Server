@@ -164,11 +164,11 @@ def move_file_trashcan(request):
     data = request.data
     file_id = data.get("file_id")
 
-    ## DB의 File.is_deleted -> True로 변경
+    ## DB의 File.is_deleted -> 1로 변경
     target = File.objects.get(
         pk = file_id
     )
-    target.is_deleted = True
+    target.is_deleted = 0
     target.save()
 
     return JsonResponse({
@@ -187,11 +187,11 @@ def restore_file(request):
     data = request.data
     file_id = data.get("file_id")
 
-    ## DB의 File.is_deleted -> False로 변경
+    ## DB의 File.is_deleted -> 1로 변경
     target = File.objects.get(
         pk = file_id
     )
-    target.is_deleted = False
+    target.is_deleted = 1
     target.save()
 
     return JsonResponse({
@@ -229,89 +229,3 @@ def delete_file(request):
     return JsonResponse({
         "message": "Success"
     }, json_dumps_params = {'ensure_ascii': True})
-
-
-
-class FileListCreateAPIView(generics.ListCreateAPIView):
-    
-    serializer_class = FileListSerializer
-    model = serializer_class.Meta.model
-    authentication_classes = [TokenAuthentication]
-
-    def perform_create(self, serializer):
-        parent_folder = Folder.objects.get(id=self.request.data.get("parent_folder_id"))
-        serializer.save(uploader = self.request.user, 
-                        parent_folder = parent_folder)
-
-    def get_queryset(self):
-        parent_folder_id = self.request.data.get("parent_folder_id")
-
-        if parent_folder_id == "null":
-            queryset = self.model.objects.filter(
-                uploader = self.request.user,
-                parent_folder__isnull=True
-            )
-        else:
-            queryset = self.model.objects.filter(
-                uploader = self.request.user,
-                parent_folder = parent_folder_id
-            )
-
-        return queryset
-
-class FolderListCreateAPIView(generics.ListCreateAPIView):
-    
-    serializer_class = FolderListSerializer
-    model = serializer_class.Meta.model
-    authentication_classes = [TokenAuthentication]
-    
-    def perform_create(self, serializer):
-        parent_folder_id = self.request.data.get("parent_folder_id")
-        print(parent_folder_id)
-        if parent_folder_id == "null":
-            serializer.save(creater = self.request.user)
-        else:
-            parent_folder = Folder.objects.get(id=parent_folder_id)
-            print(parent_folder)
-            serializer.save(creater = self.request.user,
-                            parent_folder = parent_folder)
-
-    def get_queryset(self):
-        parent_folder_id = self.request.data.get("parent_folder_id")
-
-        if parent_folder_id == "null":
-            queryset = self.model.objects.filter(
-                creater = self.request.user,
-                parent_folder__isnull=True
-            )
-        else:
-            queryset = self.model.objects.filter(
-                creater = self.request.user,
-                parent_folder = parent_folder_id
-            )
-
-        return queryset
-
-@api_view(['DELETE'])
-@authentication_classes((TokenAuthentication, ))
-def delete_folder(request):
-    user = request.user
-
-    ## request에서 받아야 할 것
-    # folder의 PK - SQLite 삭제용
-    # 루트부터 folder까지의 경로 - S3 삭제용
-    folder_id = request.data.get("folder_id")
-    folder_path = request.data.get("folder_path")
-
-    # S3의 객체 삭제
-    bucket = resource.Bucket(BucketName)
-    folder_prefix = str(user.user_id + "/" + folder_path)
-    bucket.objects.filter(Prefix=folder_prefix).delete()
-
-    # DB의 레코드 삭제 - cascade라 한 번만 하면 됨.
-    Folder.objects.filter(
-        creater = user,
-        id = folder_id
-    ).delete()
-    
-    return Response({"message": "success"}, status=status.HTTP_200_OK)
