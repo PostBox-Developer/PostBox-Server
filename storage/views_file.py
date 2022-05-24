@@ -25,77 +25,6 @@ resource = boto3.resource('s3',
 
 BucketName = secrets.get("BUCKET_NAME")
 
-'''
-홈 디렉토리 폴더-파일 목록 조회
-GET: storage/get_home_folder/
-'''
-@api_view(['GET'])
-@authentication_classes((TokenAuthentication, ))
-def get_home_folder(request):
-    login_user = request.user
-
-    # 루트 폴더 조회 
-    rootFolder = Folder.objects.filter(
-        creater = login_user,           # creater가 로그인된 유저이고
-        parent_folder__isnull=True      # parent_folder가 null인 것
-    )[0]
-
-    # parent_folder가 rootFolder인 폴더와 파일들 조회
-    folders = Folder.objects.filter(
-        creater = login_user,
-        parent_folder = rootFolder
-    )
-
-    files = File.objects.filter(
-        uploader = login_user,
-        parent_folder = rootFolder
-    )
-
-    return JsonResponse({
-        "message": "Success",
-        "current_folder_id": rootFolder.id,
-        "current_folder_name": "root/",
-        "folder_results": list(folders.values()), #FolderListSerializer(folders, many=True),
-        "file_results": list(files.values()), #FileListSerializer(files, many=True)
-    }, json_dumps_params = {'ensure_ascii': True})
-
-'''
-폴더-파일 목록 조회: 어느 폴더에 들어갔을 때, 그 폴더에 존재하는 하위 폴더와 파일들의 목록 조회
-GET: storage/get_folder_contents/
-'''
-@api_view(['GET'])
-@authentication_classes((TokenAuthentication, ))
-def get_folder_contents(request):
-    login_user = request.user
-
-    data = request.data
-    folder_id = data.get("folder_id")       # 폴더 클릭해서 들어갔을 때, 클릭한 폴더의 PK
-    folder_path = data.get("folder_path")
-
-    # PK가 folder_id인 폴더 조회 
-    clickedFolder = Folder.objects.get(
-        pk = folder_id                  # PK가 folder_id
-    )
-
-    # parent_folder가 parentFolder인 폴더와 파일들 조회
-    folders = Folder.objects.filter(
-        creater = login_user,
-        parent_folder = clickedFolder
-    )
-
-    files = File.objects.filter(
-        uploader = login_user,
-        parent_folder = clickedFolder
-    )
-
-    return JsonResponse({
-        "message": "Success",
-        "current_folder_id": folder_id,
-        "current_folder_name": clickedFolder.foldername,
-        "parent_folder_id": clickedFolder.parent_folder.id,
-        "folder_results": list(folders.values()), 
-        "file_results": list(files.values()), 
-    }, json_dumps_params = {'ensure_ascii': True})
 
 '''
 업로드된 파일 메타데이터 전송: S3 업로드에 성공한 파일의 파일명 저장-PK 응답
@@ -140,10 +69,9 @@ def modify_filename(request):
     _path = data.get("path")
 
     ## DB의 파일명 변경, modified_at 현재시간 삽입
-    target = File.objects.filter(
-        id = file_id,
-        uploader = login_user
-    )[0]
+    target = File.objects.get(
+        pk = file_id,
+    )
     target.filename = dst_name
     target.modified_at = timezone.now()
     target.save()
@@ -168,9 +96,141 @@ def modify_filename(request):
         "filename": target.filename,
         "parent_folder_id": target.parent_folder.id,
         "path": _path,
+        "uploader": target.uploader,
         "created_at": target.created_at,
         "modified_at": target.modified_at
     }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+저장 위치 변경: 업로드된 파일의 위치(경로) 변경
+POST: storage/move_file/
+'''
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def move_file(request):
+    login_user = request.user
+
+    data = request.data
+    file_id = data.get("file_id")
+    filename = data.get("filename")
+    src_parent_folder_id = data.get("src_parent_folder_id")
+    dst_parent_folder_id = data.get("dst_parent_folder_id")
+    src_path = data.get("src_path")
+    dst_path = data.get("dst_path")
+
+    ## DB의 File.parent_folder 변경, modified_at 현재시간 삽입
+    target = File.objects.get(
+        pk = file_id
+    )
+    target.parent_folder = Folder.objects.get(pk = dst_parent_folder_id)
+    target.modified_at = timezone.now()
+    target.save()
+
+    ## S3의 객체 복사->기존 객체 삭제
+    s3_src_path = str(login_user.user_id + "/" + src_path)
+    s3_dst_path = str(login_user.user_id + "/" + dst_path)
+
+    src_s3_object = {
+        "Bucket": BucketName,
+        "Key": s3_src_path + filename
+    }
+    resource.meta.client.copy(src_s3_object, BucketName, s3_dst_path + filename)
+
+    client.delete_object(
+        Bucket = BucketName,
+        Key = s3_src_path + filename
+    )
+
+    return JsonResponse({
+        "message": "Success",
+        "id": target.id,
+        "filename": target.filename,
+        "dst_parent_folder_id": target.parent_folder.id,
+        "dst_path": dst_path,
+        "uploader": target.uploader.user_id,
+        "created_at": target.created_at,
+        "modified_at": target.modified_at
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+파일을 휴지통으로: 업로드된 파일을 휴지통으로 보내 임시 삭제
+POST: storage/move_file_trashcan/
+'''
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def move_file_trashcan(request):
+    login_user = request.user
+
+    data = request.data
+    file_id = data.get("file_id")
+
+    ## DB의 File.is_deleted -> True로 변경
+    target = File.objects.get(
+        pk = file_id
+    )
+    target.is_deleted = True
+    target.save()
+
+    return JsonResponse({
+        "message": "Success"
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+파일을 휴지통으로: 업로드된 파일을 휴지통으로 보내 임시 삭제
+POST: storage/restore_file/
+'''
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def restore_file(request):
+    login_user = request.user
+
+    data = request.data
+    file_id = data.get("file_id")
+
+    ## DB의 File.is_deleted -> False로 변경
+    target = File.objects.get(
+        pk = file_id
+    )
+    target.is_deleted = False
+    target.save()
+
+    return JsonResponse({
+        "message": "Success"
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+파일 영구 삭제: 업로드된 파일을 S3와 DB 모두에서 삭제
+DELETE: storage/delete_file/
+'''
+@api_view(['DELETE'])
+@authentication_classes((TokenAuthentication, ))
+def delete_file(request):
+    login_user = request.user
+
+    data = request.data
+    file_id = data.get("file_id")
+    filename = data.get("filename")
+    parent_folder_id = data.get("parent_folder_id")
+    _path = data.get("path")
+
+    ## S3의 객체 삭제
+    target_path = str(login_user.user_id + "/" + _path)
+    client.delete_object(
+        Bucket = BucketName,
+        Key = target_path + filename
+    )
+
+    ## DB의 File 레코드 삭제
+    target = File.objects.get(
+        pk = file_id
+    )
+    target.delete()
+
+    return JsonResponse({
+        "message": "Success"
+    }, json_dumps_params = {'ensure_ascii': True})
+
+
 
 class FileListCreateAPIView(generics.ListCreateAPIView):
     
@@ -231,33 +291,6 @@ class FolderListCreateAPIView(generics.ListCreateAPIView):
             )
 
         return queryset
-
-@api_view(['DELETE'])
-@authentication_classes((TokenAuthentication, ))
-def delete_file(request):
-    user = request.user
-
-    ## request에서 받아야 할 것
-    # file의 PK - SQLite 삭제용
-    # file이 있는 경로 - S3 삭제용
-    file_id = request.data.get("file_id")
-    file_path = request.data.get("file_path")   
-    ## 나중에 디렉토리 구조 정하면.. 프론트에서 경로 정보 유지하다가 넘겨줄 것 염두에 둠.
-
-    filterFile = File.objects.filter(
-        uploader = user,
-        id = file_id
-    )
-    
-    # S3의 객체 삭제
-    #### s3 버킷에서 사용자아이디+파일명 키 담아서 객체 삭제..
-    s3_object_key = user.user_id + "/" + filterFile[0].filename
-    s3_response = client.delete_object(Bucket=BucketName, Key=s3_object_key)
-    
-    # DB의 레코드 삭제
-    filterFile.delete()
-    
-    return Response({"message": "success"}, status=status.HTTP_200_OK)
 
 @api_view(['DELETE'])
 @authentication_classes((TokenAuthentication, ))
