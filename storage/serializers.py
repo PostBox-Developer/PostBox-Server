@@ -1,6 +1,32 @@
 from .models import File, Folder
 from rest_framework import serializers
 
+class FileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = File
+        fields = (
+            "id",
+            "filename",
+            "uploader_user_id",
+            "uploader_username",
+            "parent_folder_id",
+            "created_at",
+            "modified_at"
+        )
+
+    uploader_user_id = serializers.SerializerMethodField("getUploaderId")
+    uploader_username = serializers.SerializerMethodField("getUploaderName")
+    parent_folder_id = serializers.SerializerMethodField("getParentFolderId")
+
+    def getUploaderId(self, obj):
+        return obj.uploader.user_id
+
+    def getUploaderName(self, obj):
+        return obj.uploader.username
+
+    def getParentFolderId(self, obj):
+        return obj.parent_folder.id
+
 class FileListSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
