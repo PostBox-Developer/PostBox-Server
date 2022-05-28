@@ -1,7 +1,8 @@
 from django.http import JsonResponse
 from rest_framework import generics
-from user.models import User
-from user.serializers import LoginSerializer, UserSerializer
+from user import serializers
+from user.models import User, UserFollowing
+from user.serializers import LoginSerializer, UserDataSerializer, UserSerializer
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
@@ -9,6 +10,9 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from rest_framework import exceptions
 from django.shortcuts import get_object_or_404
 from rest_framework.authentication import TokenAuthentication
+import json
+from django.db import IntegrityError
+from django.core.serializers import json as JSON
 
 
 # class UserAPI(generics.ListCreateAPIView):
@@ -28,7 +32,7 @@ def sign_up(request):
     elif ('/' in user_id):
         raise exceptions.ParseError("'/' in user_id.")
 
-    user = User.objects.create(user_id=user_id, username=username, password=password)
+    user = User.objects.create_user(user_id=user_id, username=username, password=password)
 
     return JsonResponse({
         'pk': user.pk,
@@ -103,3 +107,131 @@ def user_update(request, user_id):
         'root_folder': user.root_folder,
         'profile_image_url': user.profile_image_url
     }, json_dumps_params = {'ensure_ascii': False})
+
+
+@api_view(['DELETE'])
+@authentication_classes((TokenAuthentication, ))
+def user_delete(request, user_id):
+    user = get_object_or_404(User, user_id=user_id)
+    
+    # 재확인
+    if user.pk == request.user.pk:
+        user.delete()
+
+        return JsonResponse({
+            'message': 'success'
+        }, json_dumps_params = {'ensure_ascii': False})
+    else:
+        return JsonResponse({
+            'message': 'fail'
+        }, json_dumps_params = {'ensure_ascii': False}
+        , status=404)
+
+
+
+# ------------friend------------
+
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def friend_create(request):
+    follower = get_object_or_404(User, pk=request.user.pk)
+    followee = get_object_or_404(User, pk=request.data.get('followee'))
+    
+    try:
+        user_following_obj = UserFollowing.objects.create(follower=follower, followee=followee)
+        user_following_obj.save()
+
+    except IntegrityError as e: 
+        raise exceptions.ParseError("Already exists.")
+            
+
+    response = {
+        'userFollowing': {
+            'pk': user_following_obj.pk,
+            'follower': {
+                'pk': user_following_obj.follower.pk,
+                'user_id': user_following_obj.follower.user_id,
+                'username': user_following_obj.follower.username,
+                'root_folder': user_following_obj.follower.root_folder,
+                'profile_image_url': user_following_obj.follower.profile_image_url
+            },
+            'followee': {
+                'pk': user_following_obj.followee.pk,
+                'user_id': user_following_obj.followee.user_id,
+                'username': user_following_obj.followee.username,
+                'root_folder': user_following_obj.followee.root_folder,
+                'profile_image_url': user_following_obj.followee.profile_image_url
+            },
+    }}
+
+    # response_json = json.dumps(response)
+    # print(response_json)
+    return JsonResponse(response, json_dumps_params = {'ensure_ascii': False}, safe=False)
+
+
+@api_view(['DELETE'])
+@authentication_classes((TokenAuthentication, ))
+def friend_delete(request, userFollowing_pk):
+    user_following = get_object_or_404(UserFollowing, pk=userFollowing_pk)
+    
+    # 재확인
+    if user_following.follower.pk != request.user.pk:
+        return JsonResponse({
+            'message': 'fail'
+        }, json_dumps_params = {'ensure_ascii': False}
+        , status=400)
+    else:
+        user_following.delete()
+
+        return JsonResponse({
+            'message': 'success'
+        }, json_dumps_params = {'ensure_ascii': False}
+        , status=204)
+
+
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication, ))
+def followee_list(request):
+    target_user = get_object_or_404(User, pk=request.data.get('target_user'))
+    
+    user_following_set = UserFollowing.objects.filter(follower=target_user)
+    
+    userdata_serializer = UserDataSerializer(target_user)
+    response_target_user = userdata_serializer.data
+
+    user_following_list = []
+    for user_following in user_following_set:
+        followee_serializer = UserDataSerializer(user_following.followee)
+        followee_data = followee_serializer.data
+        user_following_list.append({'pk': user_following.pk, 'followee': followee_data})
+    
+    response = {
+        'target_user': response_target_user,
+        'userFollowing_list': user_following_list
+    }
+
+    return JsonResponse(response, json_dumps_params = {'ensure_ascii': False}, safe=False)
+
+
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication, ))
+def follower_list(request):
+    target_user = get_object_or_404(User, pk=request.data.get('target_user'))
+    
+    user_following_set = UserFollowing.objects.filter(followee=target_user)
+    
+    userdata_serializer = UserDataSerializer(target_user)
+    response_target_user = userdata_serializer.data
+
+    user_following_list = []
+    for user_following in user_following_set:
+        follower_serializer = UserDataSerializer(user_following.follower)
+        follower_data = follower_serializer.data
+        user_following_list.append({'pk': user_following.pk, 'followee': follower_data})
+    
+    response = {
+        'target_user': response_target_user,
+        'userFollowing_list': user_following_list
+    }
+
+    return JsonResponse(response, json_dumps_params = {'ensure_ascii': False}, safe=False)
