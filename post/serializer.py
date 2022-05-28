@@ -1,7 +1,5 @@
-from dataclasses import field
-
 from django.forms import IntegerField
-from .models import Post, PostAttachFile
+from .models import Post, PostAttachFile, Category
 # user.serializer import userserializer
 from rest_framework import serializers
 from storage.models import File
@@ -62,3 +60,9 @@ class PostAttachFileSerializer(serializers.ModelSerializer):
 
     # def getFile_(self, obj):
     #     return FileSerializer(obj.file).data
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['pk', 'name']
+    
