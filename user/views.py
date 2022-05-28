@@ -190,7 +190,6 @@ def friend_delete(request, userFollowing_pk):
 
 
 @api_view(['GET'])
-@authentication_classes((TokenAuthentication, ))
 def followee_list(request):
     target_user = get_object_or_404(User, pk=request.data.get('target_user'))
     
@@ -214,7 +213,6 @@ def followee_list(request):
 
 
 @api_view(['GET'])
-@authentication_classes((TokenAuthentication, ))
 def follower_list(request):
     target_user = get_object_or_404(User, pk=request.data.get('target_user'))
     
