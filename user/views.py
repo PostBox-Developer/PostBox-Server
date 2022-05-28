@@ -13,6 +13,7 @@ from rest_framework.authentication import TokenAuthentication
 import json
 from django.db import IntegrityError
 from django.core.serializers import json as JSON
+from storage.models import Folder
 
 
 # class UserAPI(generics.ListCreateAPIView):
@@ -34,11 +35,16 @@ def sign_up(request):
 
     user = User.objects.create_user(user_id=user_id, username=username, password=password)
 
+    # root_folder 생성 및 연결
+    root_folder = Folder.objects.create(foldername=user_id+"'s root", creater=user)
+    user.root_folder = root_folder
+    user.save()
+
     return JsonResponse({
         'pk': user.pk,
         'user_id': user.user_id,
         'username': user.username,
-        'root_folder': user.root_folder,
+        'root_folder': user.root_folder.pk,
         'profile_image_url': user.profile_image_url
     }, json_dumps_params = {'ensure_ascii': False})
 
@@ -55,7 +61,7 @@ class LoginAPI(ObtainAuthToken):
             'pk': user.pk,
             'user_id': user.user_id,
             'username': user.username,
-            'root_folder': user.root_folder,
+            'root_folder': user.root_folder.pk,
             'profile_image_url': user.profile_image_url
         }, json_dumps_params = {'ensure_ascii': False})
 
@@ -71,12 +77,12 @@ def user_detail(request, user_id):
         'pk': user.pk,
         'user_id': user.user_id,
         'username': user.username,
-        'root_folder': user.root_folder,
+        'root_folder': user.root_folder.pk,
         'profile_image_url': user.profile_image_url
     }, json_dumps_params = {'ensure_ascii': False})
 
 
-@api_view(['POST'])
+@api_view(['PUT'])
 @authentication_classes((TokenAuthentication, ))
 def user_update(request, user_id):
     user = get_object_or_404(User, user_id=user_id)
@@ -104,7 +110,7 @@ def user_update(request, user_id):
         'pk': user.pk,
         'user_id': user.user_id,
         'username': user.username,
-        'root_folder': user.root_folder,
+        'root_folder': user.root_folder.pk,
         'profile_image_url': user.profile_image_url
     }, json_dumps_params = {'ensure_ascii': False})
 
@@ -152,14 +158,14 @@ def friend_create(request):
                 'pk': user_following_obj.follower.pk,
                 'user_id': user_following_obj.follower.user_id,
                 'username': user_following_obj.follower.username,
-                'root_folder': user_following_obj.follower.root_folder,
+                'root_folder': user_following_obj.follower.root_folder.pk,
                 'profile_image_url': user_following_obj.follower.profile_image_url
             },
             'followee': {
                 'pk': user_following_obj.followee.pk,
                 'user_id': user_following_obj.followee.user_id,
                 'username': user_following_obj.followee.username,
-                'root_folder': user_following_obj.followee.root_folder,
+                'root_folder': user_following_obj.followee.root_folder.pk,
                 'profile_image_url': user_following_obj.followee.profile_image_url
             },
     }}
