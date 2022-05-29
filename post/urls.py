@@ -8,7 +8,7 @@ urlpatterns = [
     path("post/create/", views.PostCreateAPI.as_view()),
     # path("post/<int:pk>/", ),
     # path("post/<int:pk>/update/", ),
-    # path("post/<int:pk>/attach-file/", ),
+    path("post/<int:pk>/attach-file/", views.post_attach_file),
     path("post/<int:pk>/delete/", views.PostDeleteAPI.as_view()),
     path("post-image/<int:pk>/delete/", views.PostImageDeleteAPI.as_view()),
     path("category/", views.CatecoryListAPI.as_view()),

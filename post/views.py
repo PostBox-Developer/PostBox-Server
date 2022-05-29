@@ -14,6 +14,9 @@ from django.core import serializers
 from rest_framework import permissions
 import boto3
 from .image_bucket_config import secrets
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 
 '''GET'''
 class PostListAPI(generics.ListAPIView):
@@ -83,6 +86,54 @@ class PostDeleteAPI(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PostSerializer
     permission_classes = [permissions.IsAuthenticated, IsAuthorOfPost]
     authentication_classes = [TokenAuthentication]
+
+
+# 추후 권한 확인 추가
+@api_view(['PUT'])
+@permission_classes((permissions.IsAuthenticated,))
+@authentication_classes((TokenAuthentication, ))
+def post_attach_file(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+    detach_file_list = request.data.get('detach_file_list')
+    attach_file_list = request.data.get('attach_file_list')
+
+    # detach_file_list로 주어진 값이 없으면 pass, 있으면 처리
+    if detach_file_list != '':
+        detach_file_list = json.loads(detach_file_list)             # json 파싱
+
+        for file_pk in detach_file_list:
+            file = get_object_or_404(File, pk=file_pk)
+            post_attach_file = get_object_or_404(PostAttachFile, post=post, file=file)
+            post_attach_file.delete()
+
+    # attach_file_list로 주어진 값이 있으면 처리
+    if attach_file_list != '':
+        attach_file_list = json.loads(attach_file_list)             # json 파싱
+    
+        for file_pk in attach_file_list:
+            file = get_object_or_404(File, pk=file_pk)
+            PostAttachFile.objects.create(post=post, file=file)
+
+    # response로 줄 PostAttachFile 내용 필터링해서 제공하기
+    post_attach_file_list = PostAttachFile.objects.filter(post=post)
+    response_file_list = []
+    for post_attach_file in post_attach_file_list:
+        file = post_attach_file.file
+
+        # path 찾기
+        file_path = '/' + file.parent_folder.foldername + '/' + file.filename
+        parent_folder = file.parent_folder
+        while parent_folder.parent_folder != None:
+            file_path = '/' + parent_folder.parent_folder.foldername + file_path
+            parent_folder = parent_folder.parent_folder
+
+        response_file_list.append({'pk':file.pk, 'path':file_path})
+
+    return JsonResponse({
+        "attached_file_list": response_file_list
+        }, json_dumps_params = {'ensure_ascii': True})
+
+
 
 '''GET'''
 class CatecoryListAPI(generics.ListAPIView):
