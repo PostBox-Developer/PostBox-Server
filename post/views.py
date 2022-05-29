@@ -68,6 +68,35 @@ class PostCreateAPI(generics.CreateAPIView):
             bucket.upload_fileobj(file, s3_key)
             PostImage.objects.create(post=post, s3_key=s3_key)
 
+
+@api_view(['GET'])
+def post_detail(request, pk):
+    post = get_object_or_404(Post, pk=pk)
+
+    post_serializer = PostSerializer(post)
+    response_post = post_serializer.data
+
+    # response로 줄 PostAttachFile 내용 필터링
+    post_attach_file_list = PostAttachFile.objects.filter(post=post)
+    response_file_list = []
+    for post_attach_file in post_attach_file_list:
+        file = post_attach_file.file
+
+        # path 찾기
+        file_path = '/' + file.parent_folder.foldername + '/' + file.filename
+        parent_folder = file.parent_folder
+        while parent_folder.parent_folder != None:
+            file_path = '/' + parent_folder.parent_folder.foldername + file_path
+            parent_folder = parent_folder.parent_folder
+
+        response_file_list.append({'pk':file.pk, 'path':file_path})
+
+    return JsonResponse({
+        'post': response_post,
+        'attached_file_list': response_file_list
+        }, json_dumps_params = {'ensure_ascii': False})
+
+
 # ''' GET, PUT, DELETE '''
 # class PostDetailAPI(generics.RetrieveUpdateDestroyAPIView):
 #     queryset = Post.objects.all()
@@ -131,7 +160,7 @@ def post_attach_file(request, pk):
 
     return JsonResponse({
         "attached_file_list": response_file_list
-        }, json_dumps_params = {'ensure_ascii': True})
+        }, json_dumps_params = {'ensure_ascii': False})
 
 
 
