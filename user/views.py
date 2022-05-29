@@ -1,3 +1,4 @@
+from typing import Any
 from django.http import JsonResponse
 from rest_framework import generics
 from user import serializers
@@ -14,7 +15,22 @@ import json
 from django.db import IntegrityError
 from django.core.serializers import json as JSON
 from storage.models import Folder
+import boto3
+from .image_bucket_config import secrets
+import re
 
+
+client = boto3.client('s3',
+                        aws_access_key_id = secrets["AWS_ACCESS_KEY_ID"],
+                        aws_secret_access_key = secrets["AWS_SECRET_ACCESS_KEY"],
+                        region_name = secrets["AWS_DEFAULT_REGION"])
+
+resource = boto3.resource('s3',
+                        aws_access_key_id = secrets["AWS_ACCESS_KEY_ID"],
+                        aws_secret_access_key = secrets["AWS_SECRET_ACCESS_KEY"],
+                        region_name = secrets["AWS_DEFAULT_REGION"])
+
+BucketName = secrets["BUCKET_NAME"]
 
 # class UserAPI(generics.ListCreateAPIView):
 #     queryset = User.objects.all()
@@ -30,8 +46,8 @@ def sign_up(request):
         raise exceptions.ParseError("User_id is too short.")
     elif len(password) < 8:
         raise exceptions.ParseError("Password is too short.")
-    elif ('/' in user_id):
-        raise exceptions.ParseError("'/' in user_id.")
+    elif re.match('\w+', user_id) != user_id:
+        raise exceptions.ParseError("special characters in user_id.")
 
     user = User.objects.create_user(user_id=user_id, username=username, password=password)
 
@@ -88,22 +104,21 @@ def user_update(request, user_id):
     user = get_object_or_404(User, user_id=user_id)
 
     username = request.data.get('username')
-    src_profile_img_url = request.data.get("src_profile_image_url")
-    dst_profile_img_name = request.FILES["dst_profile_image_name"]
+    # src_profile_img_url = request.data.get("src_profile_image_url")
+    dst_profile_img = request.FILES["dst_profile_image_name"]
 
     # 이미지 수정
-    # if dst_profile_img_name != None:
-    #     src_index = src_profile_img_url.find('user_profile/')
-    #     s3_src_key = str(src_profile_img_url[src_index:-1])
-    #     s3_dst_key = str('user_profile/' + user.user_id + '/' + dst_profile_img_name)
+    if dst_profile_img != None:
+        bucket = resource.Bucket(BucketName)
 
-    #     src_s3_object = {
-    #         "Bucket": BucketName
-    #     }
+        # src_index = src_profile_img_url.find('user_profile/')
+        # s3_src_key = str(src_profile_img_url[src_index:-1])
+        s3_dst_key = 'user_profile/' + user.user_id
+        bucket.upload_fileobj(dst_profile_img, s3_dst_key)
 
     # db 수정
     user.username = username
-    # user.profile_image_url = dst_profile_img_url
+    user.profile_image_url = 'https://' + secrets['BUCKET_NAME'] + '.s3.' + secrets['AWS_DEFAULT_REGION'] + '.amazonaws.com/' + s3_dst_key
     user.save()
 
     return JsonResponse({
@@ -145,7 +160,6 @@ def friend_create(request):
     
     try:
         user_following_obj = UserFollowing.objects.create(follower=follower, followee=followee)
-        user_following_obj.save()
 
     except IntegrityError as e: 
         raise exceptions.ParseError("Already exists.")
