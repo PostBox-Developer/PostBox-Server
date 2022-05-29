@@ -46,7 +46,7 @@ def sign_up(request):
         raise exceptions.ParseError("User_id is too short.")
     elif len(password) < 8:
         raise exceptions.ParseError("Password is too short.")
-    elif re.match('\w+', user_id) != user_id:
+    elif re.match('\w+', user_id).group() != user_id:
         raise exceptions.ParseError("special characters in user_id.")
 
     user = User.objects.create_user(user_id=user_id, username=username, password=password)
