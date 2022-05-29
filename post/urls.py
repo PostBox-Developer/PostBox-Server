@@ -5,7 +5,7 @@ app_name = "post"
 
 urlpatterns = [
     # path("post/", ),
-    # path("post/create/", ),
+    path("post/create/", views.PostCreateAPI.as_view()),
     # path("post/<int:pk>/", ),
     # path("post/<int:pk>/update/", ),
     # path("post/<int:pk>/attach-file/", ),
