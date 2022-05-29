@@ -18,6 +18,7 @@ from rest_framework.decorators import api_view, permission_classes, authenticati
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
+
 '''GET'''
 class PostListAPI(generics.ListAPIView):
     serializer_class = PostListSerializer
@@ -38,14 +39,9 @@ class PostListAPI(generics.ListAPIView):
 
         return Post.objects.filter(author=user, category=category)
 
-'''POST'''
-class PostCreateAPI(generics.CreateAPIView):
-    queryset = Post.objects.all()
-    serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
 
-    def perform_create(self, serializer):
+class PostCreateUpdateBase:
+    def perform_create_or_update(self, serializer):
         if self.request.data['category_name'] in ['', None]:
             category = None
         else:
@@ -55,6 +51,7 @@ class PostCreateAPI(generics.CreateAPIView):
             except Category.DoesNotExist:
                 raise exceptions.ParseError('Category dose not exist')
         post = serializer.save(author=self.request.user, category=category)
+
         s3 = boto3.resource(
             's3',
             aws_access_key_id = secrets['AWS_ACCESS_KEY_ID'],
@@ -67,6 +64,28 @@ class PostCreateAPI(generics.CreateAPIView):
             s3_key = str(post.pk) + '/' + str(hash(key + file.name + str(timezone.now())) & 0xffffffff)
             bucket.upload_fileobj(file, s3_key)
             PostImage.objects.create(post=post, s3_key=s3_key)
+
+
+'''POST'''
+class PostCreateAPI(generics.CreateAPIView, PostCreateUpdateBase):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    def perform_create(self, serializer):
+        self.perform_create_or_update(serializer)
+
+
+'''PUT'''
+class PostUpdateAPI(generics.UpdateAPIView, PostCreateUpdateBase):
+    queryset = Post.objects.all()
+    serializer_class = PostSerializer
+    permission_classes = [permissions.IsAuthenticated, IsAuthorOfPost]
+    authentication_classes = [TokenAuthentication]
+
+    def perform_update(self, serializer):
+        self.perform_create_or_update(serializer)
 
 
 @api_view(['GET'])
@@ -97,18 +116,12 @@ def post_detail(request, pk):
         }, json_dumps_params = {'ensure_ascii': False})
 
 
-# ''' GET, PUT, DELETE '''
-# class PostDetailAPI(generics.RetrieveUpdateDestroyAPIView):
-#     queryset = Post.objects.all()
-#     serializer_class = PostSerializer
-#     permission_classes = [permissions.IsAuthenticated]
-#     authentication_classes = [TokenAuthentication]
-
 class PostImageDeleteAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = PostImage.objects.all()
     serializer_class = PostImageSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOfPostImage]
     authentication_classes = [TokenAuthentication]
+
 
 class PostDeleteAPI(generics.RetrieveUpdateDestroyAPIView):
     queryset = Post.objects.all()
@@ -163,7 +176,6 @@ def post_attach_file(request, pk):
         }, json_dumps_params = {'ensure_ascii': False})
 
 
-
 '''GET'''
 class CatecoryListAPI(generics.ListAPIView):
     serializer_class = CategorySerializer
@@ -171,6 +183,7 @@ class CatecoryListAPI(generics.ListAPIView):
     def get_queryset(self):
         user = User.objects.get(user_id=self.request.data['user_id'])
         return Category.objects.filter(user=user)
+
 
 '''POST'''
 class CatecoryCreateAPI(generics.CreateAPIView):
@@ -182,12 +195,14 @@ class CatecoryCreateAPI(generics.CreateAPIView):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+
 '''PUT'''
 class CatecoryRenameAPI(generics.UpdateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOfCategory]
     authentication_classes = [TokenAuthentication]
+
 
 '''DELETE'''
 class CatecoryDeleteAPI(generics.DestroyAPIView):
