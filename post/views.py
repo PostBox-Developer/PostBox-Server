@@ -1,10 +1,8 @@
-from urllib import request
-
 from django.utils import timezone
 from .models import Post, PostAttachFile, Category, PostImage
 from .serializer import PostSerializer, PostAttachFileSerializer, CategorySerializer, PostImageSerializer
 from user.models import User
-from rest_framework import generics, status
+from rest_framework import generics, status, exceptions
 from rest_framework.authentication import TokenAuthentication# import permission
 from storage.models import File
 from user.models import User, user_id
@@ -24,7 +22,14 @@ class PostCreateAPI(generics.CreateAPIView):
     authentication_classes = [TokenAuthentication]
 
     def perform_create(self, serializer):
-        post = serializer.save(author=self.request.user)
+        if self.request.data['category'] == '':
+            category = None
+        else:
+            try:
+                category = Category.objects.get(user=self.request.user, name=self.request.data['category'])
+            except Category.DoesNotExist:
+                raise exceptions.ParseError('Category dose not exist')
+        post = serializer.save(author=self.request.user, category=category)
         s3 = boto3.resource(
             's3',
             aws_access_key_id = secrets['AWS_ACCESS_KEY_ID'],

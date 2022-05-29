@@ -11,6 +11,7 @@ from .image_bucket_config import secrets
 class PostSerializer(serializers.ModelSerializer):
     author_id = serializers.ReadOnlyField(source='author.user_id')
     author_name = serializers.ReadOnlyField(source='author.username')
+    category = serializers.ReadOnlyField(source='category.name')
     image_list = serializers.SerializerMethodField()
 
     class Meta:
