@@ -381,7 +381,7 @@ def get_trashcan_contents(request):
     }, json_dumps_params = {'ensure_ascii': True})
 
 '''
-폴더 공개 범위 설정설정: 0 전체공개, 1 팔로잉공개, 2 비공개
+폴더 공개 범위 설정: 0 전체공개, 1 팔로잉공개, 2 비공개
 POST: storage/set_folder_open_scope/
 '''
 @api_view(['POST'])
