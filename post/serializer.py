@@ -1,36 +1,64 @@
-from dataclasses import field
-
+from dataclasses import fields
+from unicodedata import category
 from django.forms import IntegerField
-from .models import Post, PostAttachFile
+from .models import Post, PostAttachFile, Category, PostImage
 # user.serializer import userserializer
 from rest_framework import serializers
 from storage.models import File
 import json
 from django.core.serializers import serialize
+from .image_bucket_config import secrets
 
 class PostSerializer(serializers.ModelSerializer):
+    author_id = serializers.ReadOnlyField(source='author.user_id')
+    author_name = serializers.ReadOnlyField(source='author.username')
+    category_name = serializers.SerializerMethodField()
+    image_list = serializers.SerializerMethodField()
+
     class Meta:
         model = Post
         fields = [
-            "id",
-            "title",
-            "desc",
-            "author_id",    #   User의 user_id
-            "author_name",  #   User의 username
-            "created_at",
-            "modified_at",
+            'pk', 'title', 'text', 'author_id', 'author_name',
+            'category_name', 'created_at', 'modified_at', 'image_list',
         ]
 
-    author_id = serializers.SerializerMethodField("getAuthorId")
-    author_name = serializers.SerializerMethodField("getAuthorName")
+    def get_category_name(self, instance):
+        if instance.category == None:
+            return None
+        else:
+            return instance.category.name
 
-    def getAuthorId(self, obj):
-        return obj.author.user_id
+    def get_image_list(self, instance):
+        serializer = PostImageSerializer(instance.postImage, many=True)
+        return serializer.data
 
-    def getAuthorName(self, obj):
-        return obj.author.username
+class PostListSerializer(PostSerializer):
+    thumbnail_image_url = serializers.SerializerMethodField()
 
+    class Meta:
+        model = Post
+        fields = [
+            'pk', 'title', 'author_id', 'author_name', 'category_name',
+            'created_at', 'modified_at', 'thumbnail_image_url'
+        ]
+    
+    def get_thumbnail_image_url(self, instance):
+        serializer = PostImageSerializer(instance.postImage, many=True)
+        if serializer.data == []:
+            return 'https://postbox-public-image.s3.ap-northeast-2.amazonaws.com/default_thumbnail_image.png'
+        return serializer.data[0]['url']
 
+class PostImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PostImage
+        fields = ['pk', 'url']
+
+    def get_url(self, instance):
+        return ('https://' + secrets['BUCKET_NAME']
+                + '.s3.' + secrets['AWS_DEFAULT_REGION']
+                + '.amazonaws.com/' + instance.s3_key)
 class PostAttachFileSerializer(serializers.ModelSerializer):
     # postAttachFile = serializers.PrimaryKeyRelatedField(queryset=PostAttachFile.objects.all())
 
@@ -62,3 +90,9 @@ class PostAttachFileSerializer(serializers.ModelSerializer):
 
     # def getFile_(self, obj):
     #     return FileSerializer(obj.file).data
+
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['pk', 'name']
+    
