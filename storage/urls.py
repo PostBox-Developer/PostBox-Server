@@ -23,4 +23,10 @@ urlpatterns = [
     path("move_folder_trashcan/", views_folder.move_folder_trashcan),
     path("restore_folder/", views_folder.restore_folder),
     path("delete_folder/", views_folder.delete_folder),
+    path("get_trashcan_contents/", views_folder.get_trashcan_contents),
+    path("set_folder_open_scope/", views_folder.set_folder_open_scope),
+    path("create_shared_folder/", views_folder.create_shared_folder),
+    path("add_folder_sharer/", views_folder.add_folder_sharer),
+    path("delete_folder_sharer/", views_folder.delete_folder_sharer),
+    path("get_folder_sharer/", views_folder.get_folder_sharer),
 ]

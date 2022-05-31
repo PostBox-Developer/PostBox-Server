@@ -1,5 +1,6 @@
 from pydoc import cli
-from .models import File, Folder
+from .models import File, Folder, FolderSharing
+from user.models import User
 from .serializers import *
 from rest_framework import generics
 from rest_framework.authentication import TokenAuthentication
@@ -351,3 +352,177 @@ def delete_folder(request):
     ).delete()
     
     return Response({"message": "success"}, status=status.HTTP_200_OK)
+
+'''
+휴지통 목록 조회: 휴지통에 존재하는 폴더와 파일들 조회
+GET: storage/get_trashcan_contents/
+'''
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication, ))
+def get_trashcan_contents(request):
+    login_user = request.user
+
+    # creater가 login_user이고, is_deleted가 1인 폴더 조회
+    trashcan_folder = Folder.objects.filter(
+        creater = login_user,
+        is_deleted = 1
+    )
+
+    # uploader가 login_user이고, is_deleted가 1인 파일 조회
+    trashcan_file = File.objects.filter(
+        uploader = login_user,
+        is_deleted = 1
+    )
+
+    return JsonResponse({
+        "message": "Success",
+        "folder_results": list(trashcan_folder.values()), 
+        "file_results": list(trashcan_file.values()), 
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+폴더 공개 범위 설정: 0 전체공개, 1 팔로잉공개, 2 비공개
+POST: storage/set_folder_open_scope/
+'''
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def set_folder_open_scope(request):
+    login_user = request.user
+
+    data = request.data
+    folder_id = data.get("folder_id")
+    scope = data.get("scope")
+
+    # pk = folder_id인 폴더 조회
+    target = Folder.objects.get(pk = folder_id)
+
+    # 상위 폴더의 공개 범위보다 더 넓을 수는 없음
+    parent_scope = target.parent_folder.open_state
+
+    if scope < parent_scope:
+        return Response(
+            {"message": "scope_failure"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    else:
+        return JsonResponse({
+            "message": "Success"
+        }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+공유 폴더 생성
+POST: storage/create_shared_folder/
+'''
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def create_shared_folder(request):
+
+    user = request.user
+
+    data = request.data
+    folder_name = data.get("shared_folder_name")
+
+    ## Folder 모델 생성 및 save
+    createdFolder = Folder(
+        foldername = folder_name,
+        creater = user,
+        is_shared = True
+    )
+    createdFolder.save()
+
+    ## S3에 폴더 객체 생성
+    s3_key = str("shared_" + user.user_id + "/" + folder_name)
+    client.put_object(Bucket=BucketName, Key=s3_key)
+
+    return JsonResponse({
+        "message": "Success",
+        "shared_folder_id": createdFolder.id,
+        "shared_folder_name": createdFolder.foldername,
+        "parent_folder_id": createdFolder.parent_folder.id,
+        "creater": createdFolder.creater.user_id,
+        "created_at": createdFolder.created_at,
+        "modified_at": createdFolder.modified_at
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+공유 폴더 대상 멤버 추가
+POST: storage/add_folder_sharer/
+'''
+@api_view(['POST'])
+@authentication_classes((TokenAuthentication, ))
+def add_folder_sharer(request):
+    
+    user = request.user
+    data = request.data
+
+    ## 접근하려는 공유 폴더가 로그인된 유저의 것인지 확인
+    folder_id = data.get("shared_folder_id")
+    shared_folder = Folder.objects.get(pk = folder_id)
+    chk_folder_creater = shared_folder.creater
+
+    if user.id != chk_folder_creater.id:
+        return Response(
+            {"message": "shared_folder_id_failure"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    ## Folder 객체와 User 객체를 FolderSharing 매핑
+    FolderSharing(
+        sharer = User.objects.get(pk = data.get("user_pk")),
+        folder = shared_folder,
+        permission = data.get("permission")
+    ).save()
+
+    return JsonResponse({
+        "message": "Success",
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+공유 폴더 대상 멤버 삭제
+DELETE: storage/delete_folder_sharer/
+'''
+@api_view(['DELETE'])
+@authentication_classes((TokenAuthentication, ))
+def delete_folder_sharer(request):
+    user = request.user
+    data = request.data
+
+    ## 접근하려는 공유 폴더가 로그인된 유저의 것인지 확인
+    folder_id = data.get("shared_folder_id")
+    shared_folder = Folder.objects.get(pk = folder_id)
+    chk_folder_creater = shared_folder.creater
+
+    if user.id != chk_folder_creater.id:
+        return Response(
+            {"message": "shared_folder_id_failure"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    ## FolderSharing 조회 후 삭제
+    FolderSharing.objects.filter(
+        sharer = User.objects.get(pk = data.get("user_pk")),
+        folder = shared_folder
+    ).delete()
+
+    return JsonResponse({
+        "message": "Success",
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+공유 폴더 대상 멤버 조회
+GET: storage/get_folder_sharer/
+'''
+@api_view(['DELETE'])
+@authentication_classes((TokenAuthentication, ))
+def get_folder_sharer(request):
+    user = request.user
+    data = request.data
+
+    sharing = FolderSharing.objects.filter(
+        folder = Folder.objects.get(data.get("shared_folder_id"))
+    )
+
+    return JsonResponse({
+        "message": "Success",
+        "sharing": list(sharing.values()),
+    }, json_dumps_params = {'ensure_ascii': True})
