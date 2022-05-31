@@ -1,4 +1,5 @@
 from pydoc import cli
+# from xxlimited import Null
 from .models import File, Folder, FolderSharing
 from user.models import User
 from .serializers import *
@@ -444,6 +445,7 @@ def create_shared_folder(request):
         "message": "Success",
         "shared_folder_id": createdFolder.id,
         "shared_folder_name": createdFolder.foldername,
+        "parent_folder_id": None,
         "creater": createdFolder.creater.user_id,
         "created_at": createdFolder.created_at,
         "modified_at": createdFolder.modified_at
