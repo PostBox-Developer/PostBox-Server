@@ -531,3 +531,26 @@ def get_folder_sharer(request):
         "message": "Success",
         "sharing": list(sharing.values()),
     }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+공유 폴더 목록 조회
+GET: storage/get_shared_folder_list/
+'''
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication, ))
+def get_shared_folder_list(request):
+    user = request.user
+    
+    shareMatch = FolderSharing.objects.filter(
+        sharer = user
+    )
+
+    responseList = []
+
+    for obj in shareMatch:
+        responseList.append(obj.folder)
+
+    return JsonResponse({
+        "message": "Success",
+        "folder_results": responseList, 
+    }, json_dumps_params = {'ensure_ascii': True})
