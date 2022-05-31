@@ -102,10 +102,10 @@ def post_detail(request, pk):
         file = post_attach_file.file
 
         # path 찾기
-        file_path = '/' + file.parent_folder.foldername + '/' + file.filename
+        file_path = file.parent_folder.foldername + file.filename
         parent_folder = file.parent_folder
         while parent_folder.parent_folder != None:
-            file_path = '/' + parent_folder.parent_folder.foldername + file_path
+            file_path = parent_folder.parent_folder.foldername + file_path
             parent_folder = parent_folder.parent_folder
 
         response_file_list.append({'pk':file.pk, 'path':file_path})
@@ -163,10 +163,10 @@ def post_attach_file(request, pk):
         file = post_attach_file.file
 
         # path 찾기
-        file_path = '/' + file.parent_folder.foldername + '/' + file.filename
+        file_path = file.parent_folder.foldername + file.filename
         parent_folder = file.parent_folder
         while parent_folder.parent_folder != None:
-            file_path = '/' + parent_folder.parent_folder.foldername + file_path
+            file_path = parent_folder.parent_folder.foldername + file_path
             parent_folder = parent_folder.parent_folder
 
         response_file_list.append({'pk':file.pk, 'path':file_path})

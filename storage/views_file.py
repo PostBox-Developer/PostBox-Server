@@ -1,8 +1,9 @@
 from pydoc import cli
-from .models import File, Folder
+from .models import File, Folder, FolderSharing
 from .serializers import *
 from rest_framework import generics
 from rest_framework.authentication import TokenAuthentication
+from django.shortcuts import get_object_or_404
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -229,3 +230,62 @@ def delete_file(request):
     return JsonResponse({
         "message": "Success"
     }, json_dumps_params = {'ensure_ascii': True})
+
+
+
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication, ))
+def check_permission(request):
+    user_id = request.user.user_id
+    parent_folder_id = request.data.get('parent_folder_id')
+    request_type = request.data.get('type')
+    file_name = request.data.get('filename')
+    path = request.data.get('path')
+    if request_type == 'upload':
+        request_type = 'put_object'
+    elif request_type == 'download':
+        request_type = 'get_object'
+
+    folder = get_object_or_404(Folder, pk=parent_folder_id)
+
+    if folder.is_deleted == True:
+        return JsonResponse({
+            "message": "Folder is deleted."
+        }, json_dumps_params = {'ensure_ascii': True}
+        , status=400)
+    
+    if folder.is_shared == False:
+        if folder.creater == request.user:
+            url = client.generate_presigned_url(
+                ClientMethod=request_type, 
+                Params={'Bucket': BucketName, 'Key': user_id + '/' + path + file_name},
+                ExpiresIn=300)
+
+            return JsonResponse(
+                {"url": url},
+                json_dumps_params = {'ensure_ascii': True},
+                status=200
+            )
+    else:
+        r_folder = folder
+        while r_folder.parent_folder != None:
+            r_folder = r_folder.parent_folder
+        folder_sharing = get_object_or_404(FolderSharing, folder=r_folder, sharer=request.user)
+        
+        if folder_sharing.permission != 0 or request_type == 'get_object':
+            url = client.generate_presigned_url(
+                ClientMethod=request_type, 
+                Params={'Bucket': BucketName, 'Key': 'shared_' + user_id + '/' + path + file_name},
+                ExpiresIn=300)
+            
+            return JsonResponse(
+                {"url": url},
+                json_dumps_params = {'ensure_ascii': True},
+                status=200
+            )
+
+    return JsonResponse(
+        {"message": "permission fail"},
+        json_dumps_params = {'ensure_ascii': True},
+        status=400
+    )
