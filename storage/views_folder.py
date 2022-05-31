@@ -422,7 +422,7 @@ def create_shared_folder(request):
     data = request.data
     folder_name = data.get("shared_folder_name")
 
-    ## Folder 모델 생성 및 save
+    ## Folder 객체 생성 및 save
     createdFolder = Folder(
         foldername = folder_name,
         creater = user,
@@ -434,11 +434,16 @@ def create_shared_folder(request):
     s3_key = str("shared_" + user.user_id + "/" + folder_name)
     client.put_object(Bucket=BucketName, Key=s3_key)
 
+    FolderSharing(
+        sharer = user,
+        folder = create_folder,
+        permission = 2
+    ).save()
+
     return JsonResponse({
         "message": "Success",
         "shared_folder_id": createdFolder.id,
         "shared_folder_name": createdFolder.foldername,
-        "parent_folder_id": createdFolder.parent_folder.id,
         "creater": createdFolder.creater.user_id,
         "created_at": createdFolder.created_at,
         "modified_at": createdFolder.modified_at
