@@ -57,7 +57,7 @@ def get_home_folder(request):
     return JsonResponse({
         "message": "Success",
         "current_folder_id": rootFolder.id,
-        "current_folder_name": "root/",
+        "current_folder_name": rootFolder.foldername,
         "folder_results": list(folders.values()), #FolderListSerializer(folders, many=True),
         "file_results": list(files.values()), #FileListSerializer(files, many=True)
     }, json_dumps_params = {'ensure_ascii': True})
