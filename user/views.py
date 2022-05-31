@@ -17,6 +17,7 @@ from django.core.serializers import json as JSON
 from storage.models import Folder
 import boto3
 from .image_bucket_config import secrets
+from .boto3_config import secrets as _secrets
 import re
 
 
@@ -25,12 +26,18 @@ client = boto3.client('s3',
                         aws_secret_access_key = secrets["AWS_SECRET_ACCESS_KEY"],
                         region_name = secrets["AWS_DEFAULT_REGION"])
 
+_client = boto3.client('s3',
+                        aws_access_key_id = _secrets["AWS_ACCESS_KEY_ID"],
+                        aws_secret_access_key = _secrets["AWS_SECRET_ACCESS_KEY"],
+                        region_name = _secrets["AWS_DEFAULT_REGION"])
+
 resource = boto3.resource('s3',
                         aws_access_key_id = secrets["AWS_ACCESS_KEY_ID"],
                         aws_secret_access_key = secrets["AWS_SECRET_ACCESS_KEY"],
                         region_name = secrets["AWS_DEFAULT_REGION"])
 
 BucketName = secrets["BUCKET_NAME"]
+_BucketName = _secrets["BUCKET_NAME"]
 
 # class UserAPI(generics.ListCreateAPIView):
 #     queryset = User.objects.all()
@@ -52,9 +59,12 @@ def sign_up(request):
     user = User.objects.create_user(user_id=user_id, username=username, password=password)
 
     # root_folder 생성 및 연결
-    root_folder = Folder.objects.create(foldername=user_id+"'s root", creater=user)
+    root_folder = Folder.objects.create(foldername=user_id + "/", creater=user)
     user.root_folder = root_folder
     user.save()
+
+    s3_key = str(user_id + "/")
+    _client.put_object(Bucket=_BucketName, Key=s3_key)
 
     return JsonResponse({
         'pk': user.pk,
