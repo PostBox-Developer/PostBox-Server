@@ -58,7 +58,7 @@ def get_home_folder(request):
     return JsonResponse({
         "message": "Success",
         "current_folder_id": rootFolder.id,
-        "current_folder_name": "root/",
+        "current_folder_name": rootFolder.foldername,
         "folder_results": list(folders.values()), #FolderListSerializer(folders, many=True),
         "file_results": list(files.values()), #FileListSerializer(files, many=True)
     }, json_dumps_params = {'ensure_ascii': True})
@@ -423,7 +423,7 @@ def create_shared_folder(request):
     data = request.data
     folder_name = data.get("shared_folder_name")
 
-    ## Folder 모델 생성 및 save
+    ## Folder 객체 생성 및 save
     createdFolder = Folder(
         foldername = folder_name,
         creater = user,
@@ -434,6 +434,12 @@ def create_shared_folder(request):
     ## S3에 폴더 객체 생성
     s3_key = str("shared_" + user.user_id + "/" + folder_name)
     client.put_object(Bucket=BucketName, Key=s3_key)
+
+    FolderSharing(
+        sharer = user,
+        folder = create_folder,
+        permission = 2
+    ).save()
 
     return JsonResponse({
         "message": "Success",
