@@ -13,6 +13,7 @@ urlpatterns = [
     path("move_file_trashcan/", views_file.move_file_trashcan),
     path("restore_file/", views_file.restore_file),
     path("delete_file/", views_file.delete_file),
+    path("check_permission/", views_file.check_permission),
 
     #Folders
     path("get_home_folder/", views_folder.get_home_folder),
@@ -29,4 +30,5 @@ urlpatterns = [
     path("add_folder_sharer/", views_folder.add_folder_sharer),
     path("delete_folder_sharer/", views_folder.delete_folder_sharer),
     path("get_folder_sharer/", views_folder.get_folder_sharer),
+    path("get_shared_folder_list/", views_folder.get_shared_folder_list),
 ]

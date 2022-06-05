@@ -1,4 +1,5 @@
 from pydoc import cli
+# from xxlimited import Null
 from .models import File, Folder, FolderSharing
 from user.models import User
 from .serializers import *
@@ -422,7 +423,7 @@ def create_shared_folder(request):
     data = request.data
     folder_name = data.get("shared_folder_name")
 
-    ## Folder 모델 생성 및 save
+    ## Folder 객체 생성 및 save
     createdFolder = Folder(
         foldername = folder_name,
         creater = user,
@@ -434,11 +435,17 @@ def create_shared_folder(request):
     s3_key = str("shared_" + user.user_id + "/" + folder_name)
     client.put_object(Bucket=BucketName, Key=s3_key)
 
+    FolderSharing(
+        sharer = user,
+        folder = create_folder,
+        permission = 2
+    ).save()
+
     return JsonResponse({
         "message": "Success",
         "shared_folder_id": createdFolder.id,
         "shared_folder_name": createdFolder.foldername,
-        "parent_folder_id": createdFolder.parent_folder.id,
+        "parent_folder_id": None,
         "creater": createdFolder.creater.user_id,
         "created_at": createdFolder.created_at,
         "modified_at": createdFolder.modified_at
@@ -525,4 +532,27 @@ def get_folder_sharer(request):
     return JsonResponse({
         "message": "Success",
         "sharing": list(sharing.values()),
+    }, json_dumps_params = {'ensure_ascii': True})
+
+'''
+공유 폴더 목록 조회
+GET: storage/get_shared_folder_list/
+'''
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication, ))
+def get_shared_folder_list(request):
+    user = request.user
+    
+    shareMatch = FolderSharing.objects.filter(
+        sharer = user
+    )
+
+    responseList = []
+
+    for obj in shareMatch:
+        responseList.append(obj.folder)
+
+    return JsonResponse({
+        "message": "Success",
+        "folder_results": responseList, 
     }, json_dumps_params = {'ensure_ascii': True})
